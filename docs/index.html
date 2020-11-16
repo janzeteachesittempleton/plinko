@@ -1,0 +1,234 @@
+<html>
+<head>
+<title>Plinko</title>
+<script src="js/phaser.min.js"></script>
+</head>
+<body>
+<h1>Plinko</h1>
+<script>
+// add score at start
+
+
+// Game goes here
+
+var Plinko = new Phaser.Class({
+    Extends: Phaser.Scene,
+    initialize: function Plinko() {
+        Phaser.Scene.call(this, { key: 'plinko' });
+    },
+
+    preload: function() {
+        // Load assets like images, sprites, audio files
+        
+        //load sound
+        this.load.audio('blop', [ 'assets/blop.wav' ]);
+        this.load.audio('tick', [ 'assets/tick.mp3' ]);
+        
+        this.load.image('background', 'assets/spacee.jpg');
+        this.load.image('ball', 'assets/ball_red.png');
+        this.load.image('pegs', 'assets/ball_blue.png');
+    },
+    
+    
+
+    restartBall: function(score_value) {       
+        this.ball.setY(10);
+        this.ball.setData('dropped', false);
+        this.ball.setToSleep();
+        this.ball.setVelocity(0, 0);
+        this.ball.setData('score', this.ball.getData('score') + score_value);
+        if (this.ball.getData('highscore') < this.ball.getData('score') ) {
+            this.ball.setData('highscore', this.ball.getData('score') );
+        }
+        
+    },
+    
+
+    create: function() {
+        // Initialize world        
+        
+        //sound
+        var tick = this.sound.add('tick');
+        var blop = this.sound.add('blop');
+        this.blop = blop;
+        
+        this.matter.world.setBounds(0, 0, 800, 600, 10, true, true, true, false);
+
+        // Create ball
+
+        var ball = this.matter.add.image(400, 10, 'ball')
+        ball.setCircle(6, 2, 2);
+        ball.setBounce(0.5);
+        ball.setFriction(0.1);
+        ball.setDensity(100);
+        ball.setData('dropped', false);
+        this.ball = ball;
+        
+        this.restartBall(0);
+
+        //background
+
+        // var background = this.matter.add.image(400, 300, 'background')
+
+        //the pegs
+
+        var createdPegs = [];
+        for (var i = 0; i < 150; i++) {
+            var X; 
+            var Y;
+            var collided = false;
+            do {
+                collided = false;
+                X = Phaser.Math.Between(20, 780);
+                Y = Phaser.Math.Between(75, 550);
+                for (var j = 0; j < i && i > 0; j++) {
+                    if ( Math.abs(createdPegs[j].x - X) < 35 && Math.abs(createdPegs[j].y - Y) < 25 ) {
+                        collided = true;
+                    }
+                }
+            } while (collided == true);
+            var peg = this.matter.add.image(X, Y, 'pegs');
+            peg.setCircle();
+            peg.setStatic(true);
+            peg.setIgnoreGravity(true);
+            ball.setOnCollideWith(peg, function(collidedWith, collidedInfo) {
+                //collidedInfo.bodyB.gameObject.tint = 100000150;
+                collidedInfo.bodyB.gameObject.setTint(0xc6cc1f);
+                tick.play();
+                ball.setData('score', ball.getData('score') + 1);
+            }, null, this);
+            createdPegs.push(peg);
+        }
+        this.pegs = createdPegs;
+    
+
+        //dividers
+
+        this.matter.add.fromVertices(250, 585, "0, 0, 15, 15, 15, 50, -15, 50, -15, 15",  {ignoreGravity: true, isStatic: true });
+
+        var divider = this.add.graphics({ x: 250, y: 555 });
+        divider.lineStyle(2, 0x00aa00);
+        divider.fillStyle(0x2b0c05)
+        divider.beginPath();
+        divider.lineTo(0, 0);
+        divider.lineTo(15, 15);
+        divider.lineTo(15, 50);
+        divider.lineTo(-15, 50);
+        divider.lineTo(-15, 15);
+        divider.closePath();
+        divider.strokePath();
+        divider.fillPath();
+
+        this.matter.add.fromVertices(550, 585, "0, 0, 15, 15, 15, 50, -15, 50, -15, 15",  {ignoreGravity: true, isStatic: true });
+
+        var divider = this.add.graphics({ x: 550, y: 555 });
+        divider.lineStyle(2, 0x00aa00);
+        divider.fillStyle(0x2b0c05)
+        divider.beginPath();
+        divider.lineTo(0, 0);
+        divider.lineTo(15, 15);
+        divider.lineTo(15, 50);
+        divider.lineTo(-15, 50);
+        divider.lineTo(-15, 15);
+        divider.closePath();
+        divider.strokePath();
+        divider.fillPath();
+        
+        // Input events
+
+        this.input.on('pointermove', function(pointer) {
+            if (this.ball.getData('dropped') == false) {
+                this.ball.setX( Phaser.Math.Clamp(pointer.x, 10, 790) );
+            }
+        }, this);
+
+        this.input.on('pointerup', function(pointer) {
+            this.ball.setData('dropped', true);
+            this.ball.setAwake();
+            this.ball.setData('score', 0);
+        }, this);
+
+
+        // button
+
+        var button = this.add.text(700,10,'restart', { font: '20px Courier', fill: '#ff0000'});
+        button.setInteractive();
+        button.on('pointerup', function(pointer, x, y, event) {
+            event.stopPropagation();
+            this.restartBall(0);
+        }, this);
+
+        //score
+        
+        this.ball.setData('score', 0);
+        this.ball.setData('highscore', 0);
+
+        var scoretext = this.add.text(20, 40, '', { font: '20px Courier', fill: '#00ff00'});
+        scoretext.setText( 'Score: ' + this.ball.getData('score') );
+        this.ball.on('changedata-score', function(gameObject, value) {
+            scoretext.setText( 'Score: ' + this.ball.getData('score') );
+        }, this);
+
+        var zonescoretext = this.add.text(400, 555, '5', { font: '20px Courier', fill: '#ff0000'});
+        
+        var zonescoretext = this.add.text(125, 555, '10', { font: '20px Courier', fill: '#ff0000'});
+
+        var zonescoretext = this.add.text(675, 555, '1', { font: '20px Courier', fill: '#ff0000'});
+
+        var highscoretext = this.add.text(20, 20, '', { font: '20px Courier', fill: '#00ff00'});
+        highscoretext.setText( 'HighScore: ' + this.ball.getData('highscore') );
+        this.ball.on('changedata-highscore', function(gameObject, value) {
+            highscoretext.setText( 'HighScore: ' + this.ball.getData('highscore') );
+        }, this);
+
+        //scorezone
+    this.graphics = this.add.graphics({ fillStyle: { color: 0x00ff00 } });
+        var rectangle = new Phaser.Geom.Rectangle(0, 595, 800, 600);
+        this.graphics.fillRectShape(rectangle);
+    },
+
+    update: function() {
+        // Runs each tick to update objects
+        if (this.ball.y > 595) {
+            if (this.ball.x > 550) {
+                this.restartBall(1);
+                this.blop.play();
+            }
+            else if (this.ball.x < 250) {
+                this.restartBall(10);
+                this.blop.play();
+            }
+            else {
+                this.restartBall(5);
+                this.blop.play();
+            }
+        }
+        
+    }
+});
+
+
+var config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    physics: {
+        default: 'matter',
+        matter: {
+            enableSleeping: true,
+            gravity: { y: 1 }, 
+            //debug: true,
+            
+
+        }
+    },
+    scene: [ Plinko ],
+};
+
+var game = new Phaser.Game(config);
+
+
+
+</script>
+</body>
+</html>
